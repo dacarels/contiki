@@ -120,7 +120,8 @@
 #else
 #define RPL_MIN_HOPRANKINC          RPL_CONF_MIN_HOPRANKINC
 #endif
-#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
+//#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
+#define RPL_MAX_RANKINC             (10 * RPL_MIN_HOPRANKINC) //added by dacarels
 
 #define DAG_RANK(fixpt_rank, instance) \
   ((fixpt_rank) / (instance)->min_hoprankinc)
@@ -193,7 +194,7 @@
 #ifdef  RPL_DIS_INTERVAL_CONF
 #define RPL_DIS_INTERVAL                RPL_DIS_INTERVAL_CONF
 #else
-#define RPL_DIS_INTERVAL                60
+#define RPL_DIS_INTERVAL                10	//changed by dacarels
 #endif
 #define RPL_DIS_START_DELAY             5
 /*---------------------------------------------------------------------------*/
@@ -317,8 +318,23 @@ void rpl_cancel_dao(rpl_instance_t *instance);
 
 void rpl_reset_dio_timer(rpl_instance_t *);
 void rpl_reset_periodic_timer(void);
+void rpl_reset_dis_preferred(void);	//added by dacarels
+void rpl_reset_dis_alternative(void);	//added by dacarels
+void rpl_reset_pref_counter(rpl_dag_t *dag);	//added by dacarels
 
 /* Route poisoning. */
 void rpl_poison_routes(rpl_dag_t *, rpl_parent_t *);
+
+uint16_t received_dis;	//added by dacarels
+uint16_t send_dis;	//added by dacarels
+uint16_t received_dio;	//added by dacarels
+uint16_t send_dio;	//added by dacarels
+uint16_t received_dao;	//added by dacarels
+uint16_t send_dao;	//added by dacarels
+uint16_t received_no_path_dao;	//added by dacarels
+uint16_t send_no_path_dao;	//added by dacarels
+uint16_t received_dao_ack;	//added by dacarels
+uint16_t send_dao_ack;	//added by dacarels
+uint16_t received_unkown;	//added by dacarels
 
 #endif /* RPL_PRIVATE_H */

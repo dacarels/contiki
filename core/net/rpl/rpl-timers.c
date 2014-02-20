@@ -57,6 +57,9 @@ static void new_dio_interval(rpl_instance_t *instance);
 static void handle_dio_timer(void *ptr);
 
 static uint16_t next_dis;
+//static uint16_t next_print; //added by dacarels
+static uint16_t next_unicast_dis_preferred;	//added by dacarels
+static uint16_t next_unicast_dis_alternative;	//added by dacarels
 
 /* dio_send_ok is true if the node is ready to send DIOs */
 static uint8_t dio_send_ok;
@@ -65,6 +68,12 @@ static uint8_t dio_send_ok;
 static void
 handle_periodic_timer(void *ptr)
 {
+  #ifdef RPL_DIS_SEND
+  rpl_dag_t *dag;
+  rpl_instance_t *instance;
+  rpl_instance_t *end;
+  #endif
+
   rpl_purge_routes();
   rpl_recalculate_ranks();
 
@@ -74,8 +83,52 @@ handle_periodic_timer(void *ptr)
   if(rpl_get_any_dag() == NULL && next_dis >= RPL_DIS_INTERVAL) {
     next_dis = 0;
     dis_output(NULL);
+	printf("Discovering environment\n\n");
   }
-#endif
+  #ifdef RPL_MOBILE
+    #if RPL_DAG_MOBILE_DIS
+	else {
+		if(next_dis >= RPL_DIS_MOBILE_INTERVAL) {
+	    	next_dis = 0;
+	    	dis_output(NULL);
+	    	printf("RPL_DIS_MOBILE_INTERVAL expired %d\n\n", RPL_DIS_MOBILE_INTERVAL);
+	  	}
+	}
+    next_unicast_dis_alternative++;
+    next_unicast_dis_preferred++;
+
+    for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
+		if(instance->used == 1) {
+			dag = instance->current_dag;
+			if(dag != NULL && dag->rank != ROOT_RANK(instance)){
+	  			dag->pref_parrent_counter++;
+	  			if (RPL_PARENT_COUNT(dag) >= 2){
+	    			if (next_unicast_dis_preferred >= RPL_DIS_PARENT_INTERVAL){
+	      				next_unicast_dis_preferred = 0;
+	      				//dis_output(&dag->preferred_parent->addr);
+	      				dis_output(rpl_get_parent_ipaddr(dag->preferred_parent));
+	      				printf("RPL_DIS_PARENT_INTERVAL expired for preferred_parent with 2 parents %d\n\n", RPL_DIS_PARENT_INTERVAL);
+	    			}
+	    			if (next_unicast_dis_alternative >= RPL_DIS_PARENT_INTERVAL){
+	      				next_unicast_dis_alternative = 0;
+	      				//dis_output(&dag->alternative_parent->addr);
+	      				dis_output(rpl_get_parent_ipaddr(dag->alternative_parent));
+	      				printf("RPL_DIS_PARENT_INTERVAL expired for alternative parent %d\n\n", RPL_DIS_PARENT_INTERVAL);
+	    			}
+	  			} else {
+	    			if (RPL_PARENT_COUNT(dag) == 1 && next_unicast_dis_preferred >= RPL_DIS_PARENT_INTERVAL){
+	      				next_unicast_dis_preferred = 0;
+	      				//dis_output(&dag->preferred_parent->addr);
+	      				dis_output(rpl_get_parent_ipaddr(dag->preferred_parent));
+	      				printf("RPL_DIS_PARENT_INTERVAL expired for preferred_parent with ONE parents %d\n\n", RPL_DIS_PARENT_INTERVAL);
+	    			}
+	  			}
+			}
+      	}
+    }
+    #endif /*RPL_DAG_MOBILE_DIS*/
+  #endif /*RPL_MOBILE*/
+#endif /*RPL_DIS_SEND*/
   ctimer_reset(&periodic_timer);
 }
 /*---------------------------------------------------------------------------*/
@@ -173,6 +226,7 @@ rpl_reset_periodic_timer(void)
   next_dis = RPL_DIS_INTERVAL / 2 +
     ((uint32_t)RPL_DIS_INTERVAL * (uint32_t)random_rand()) / RANDOM_RAND_MAX -
     RPL_DIS_START_DELAY;
+  next_print=0;
   ctimer_set(&periodic_timer, CLOCK_SECOND, handle_periodic_timer, NULL);
 }
 /*---------------------------------------------------------------------------*/
@@ -293,4 +347,25 @@ rpl_cancel_dao(rpl_instance_t *instance)
   ctimer_stop(&instance->dao_lifetime_timer);
 }
 /*---------------------------------------------------------------------------*/
+//added by dacarels
+void
+rpl_reset_pref_counter(rpl_dag_t *instance)
+{
+  instance->prev_pref_parrent_counter=instance->pref_parrent_counter;
+  instance->pref_parrent_counter=0;
+}
+/*---------------------------------------------------------------------------*/
+//added by dacarels
+void
+rpl_reset_dis_preferred(void){
+  next_unicast_dis_preferred=0;
+}
+/*---------------------------------------------------------------------------*/
+//added by dacarels
+void
+rpl_reset_dis_alternative(void){
+  next_unicast_dis_alternative=0;
+}
+/*---------------------------------------------------------------------------*/
+
 #endif /* UIP_CONF_IPV6 */

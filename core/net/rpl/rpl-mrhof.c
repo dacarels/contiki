@@ -69,7 +69,9 @@ rpl_of_t rpl_mrhof = {
 
 /* Constants for the ETX moving average */
 #define ETX_SCALE   100
+#ifndef ETX_ALPHA
 #define ETX_ALPHA   90
+#endif
 
 /* Reject parents that have a higher link metric than the following. */
 #define MAX_LINK_METRIC			10

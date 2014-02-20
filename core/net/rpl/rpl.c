@@ -261,10 +261,29 @@ void
 rpl_init(void)
 {
   uip_ipaddr_t rplmaddr;
-  PRINTF("RPL started\n");
+  //PRINTF("RPL started\n");
+  #ifdef RPL_MOBILE
+    printf("RPL started with Mobility and initial link metric %d\n", INITIAL_LINK_METRIC);
+  #else
+    printf("RPL started no mobile\n");
+  #endif
   default_instance = NULL;
 
   rpl_dag_init();
+
+  //added by dacarels
+  received_dis = 0;
+  send_dis = 0;
+  received_dio = 0;
+  send_dio = 0;
+  received_dao = 0;
+  send_dao = 0;
+  received_no_path_dao = 0;
+  send_no_path_dao = 0;
+  received_dao_ack = 0;
+  send_dao_ack = 0;
+  received_unkown = 0;
+
   rpl_reset_periodic_timer();
 
   /* add rpl multicast address */

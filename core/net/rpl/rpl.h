@@ -114,6 +114,9 @@ struct rpl_parent {
   uint16_t link_metric;
   uint8_t dtsn;
   uint8_t updated;
+  #ifdef RPL_MOBILE
+  uint8_t missed_DIS;
+  #endif
 };
 typedef struct rpl_parent rpl_parent_t;
 /*---------------------------------------------------------------------------*/
@@ -137,9 +140,17 @@ struct rpl_dag {
   /* live data for the DAG */
   uint8_t joined;
   rpl_parent_t *preferred_parent;
+#ifdef RPL_MOBILE
+  rpl_parent_t *alternative_parent;//added by dacarels
+#endif
   rpl_rank_t rank;
   struct rpl_instance *instance;
   rpl_prefix_t prefix_info;
+  
+  uint16_t prev_pref_parrent_counter;//added by dacarels
+  uint16_t pref_parrent_counter;//added by dacarels
+  uint16_t number_of_pref_parents;//added by dacarels
+  uint16_t number_of_alt_parents;//added by dacarels
 };
 typedef struct rpl_dag rpl_dag_t;
 typedef struct rpl_instance rpl_instance_t;

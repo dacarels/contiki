@@ -145,6 +145,7 @@ dis_input(void)
   PRINTF("RPL: Received a DIS from ");
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
   PRINTF("\n");
+  received_dis++;
 
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES;
       instance < end; ++instance) {
@@ -184,6 +185,8 @@ dis_output(uip_ipaddr_t *addr)
   if(addr == NULL) {
     uip_create_linklocal_rplnodes_mcast(&tmpaddr);
     addr = &tmpaddr;
+    //dacarels update missed_DIS!!! TODO!!!
+	printf("dacarels update missed_DIS!!! TODO!!!\n");
   }
 
   PRINTF("RPL: Sending a DIS to ");
@@ -191,6 +194,7 @@ dis_output(uip_ipaddr_t *addr)
   PRINTF("\n");
 
   uip_icmp6_send(addr, ICMP6_RPL, RPL_CODE_DIS, 2);
+  send_dis++;
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -223,6 +227,7 @@ dio_input(void)
   PRINTF("RPL: Received a DIO from ");
   PRINT6ADDR(&from);
   PRINTF("\n");
+  received_dio++;
 
   if((nbr = uip_ds6_nbr_lookup(&from)) == NULL) {
     if((nbr = uip_ds6_nbr_add(&from, (uip_lladdr_t *)
@@ -236,7 +241,7 @@ dio_input(void)
       PRINTLLADDR((uip_lladdr_t *)packetbuf_addr(PACKETBUF_ADDR_SENDER));
       PRINTF("\n");
     } else {
-      PRINTF("RPL: Out of Memory, dropping DIO from ");
+      printf("RPL: Out of Memory, dropping DIO from ");
       PRINT6ADDR(&from);
       PRINTF(", ");
       PRINTLLADDR((uip_lladdr_t *)packetbuf_addr(PACKETBUF_ADDR_SENDER));
@@ -552,6 +557,7 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   }
 #endif /* RPL_LEAF_ONLY */
+  send_dio++;
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -589,6 +595,7 @@ dao_input(void)
   PRINTF("RPL: Received a DAO from ");
   PRINT6ADDR(&dao_sender_addr);
   PRINTF("\n");
+  received_dao++;
 
   buffer = UIP_ICMP_PAYLOAD;
   buffer_length = uip_len - uip_l3_icmp_hdr_len;
@@ -658,6 +665,7 @@ dao_input(void)
 
   if(lifetime == RPL_ZERO_LIFETIME) {
     PRINTF("RPL: No-Path DAO received\n");
+	received_no_path_dao++;
     /* No-Path DAO received; invoke the route purging routine. */
     if(rep != NULL &&
        rep->state.nopath_received == 0 &&
@@ -860,6 +868,7 @@ dao_output_target(rpl_parent_t *parent, uip_ipaddr_t *prefix, uint8_t lifetime)
   buffer[pos++] = 0; /* path control - ignored */
   buffer[pos++] = 0; /* path seq - ignored */
   buffer[pos++] = lifetime;
+send_no_path_dao++;
 
   PRINTF("RPL: Sending DAO with prefix ");
   PRINT6ADDR(prefix);
@@ -869,6 +878,7 @@ dao_output_target(rpl_parent_t *parent, uip_ipaddr_t *prefix, uint8_t lifetime)
 
   if(rpl_get_parent_ipaddr(parent) != NULL) {
     uip_icmp6_send(rpl_get_parent_ipaddr(parent), ICMP6_RPL, RPL_CODE_DAO, pos);
+	send_dao++;
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -894,6 +904,7 @@ dao_ack_input(void)
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
   PRINTF("\n");
 #endif /* DEBUG */
+  received_dao_ack++;
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -913,6 +924,7 @@ dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
   buffer[3] = 0;
 
   uip_icmp6_send(dest, ICMP6_RPL, RPL_CODE_DAO_ACK, 4);
+  send_dao_ack++;
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -934,6 +946,7 @@ uip_rpl_input(void)
     break;
   default:
     PRINTF("RPL: received an unknown ICMP6 code (%u)\n", UIP_ICMP_BUF->icode);
+    received_packet_unkown++;
     break;
   }
 

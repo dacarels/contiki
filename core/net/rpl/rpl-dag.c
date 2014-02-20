@@ -271,6 +271,9 @@ rpl_set_root(uint8_t instance_id, uip_ipaddr_t *dag_id)
   instance->mop = RPL_MOP_DEFAULT;
   instance->of = &RPL_OF;
   rpl_set_preferred_parent(dag, NULL);
+#ifdef RPL_MOBILE
+  rpl_set_alternative_parent(dag, NULL);
+#endif
 
   memcpy(&dag->dag_id, dag_id, sizeof(dag->dag_id));
 
@@ -705,6 +708,14 @@ static rpl_parent_t *
 best_parent(rpl_dag_t *dag)
 {
   rpl_parent_t *p, *best;
+  #ifdef RPL_MOBILE
+  #if RPL_DAG_MOBILE_ALT_PARENT
+  rpl_parent_t *alternative;	//added by dacarels
+  #endif
+  #endif
+  unsigned long time;
+
+
 
   best = NULL;
 
@@ -719,6 +730,26 @@ best_parent(rpl_dag_t *dag)
     }
     p = nbr_table_next(rpl_parents, p);
   }
+
+  #if RPL_DAG_MOBILE_ALT_PARENT
+  //printf("Search alternative parent\n");
+  alternative = NULL;
+  p = nbr_table_head(rpl_parents);
+  while(p != NULL) {
+    if(p == best){
+      //printf("Same as best parent\n");
+    } else if(p->rank == INFINITE_RANK) {
+      /* ignore this neighbor */
+      //printf("Infinite rank\n");
+    } else if(alternative == NULL) {
+      alternative = p;
+      //printf("Alternative was NULL. Set to p\n");
+    } else {
+      alternative = dag->instance->of->best_parent(alternative, p);
+      //printf("Select best_parent\n");
+    }
+  }
+  #endif
 
   return best;
 }
@@ -767,6 +798,12 @@ rpl_nullify_parent(rpl_parent_t *parent)
       dao_output(parent, RPL_ZERO_LIFETIME);
     }
   }
+  
+  #ifdef RPL_MOBILE
+  if(parent == dag->alternative_parent || dag->alternative_parent == NULL) {
+    rpl_set_alternative_parent(dag, NULL);
+  }
+  #endif
 
   PRINTF("RPL: Nullifying parent ");
   PRINT6ADDR(rpl_get_parent_ipaddr(parent));
@@ -904,6 +941,12 @@ rpl_join_instance(uip_ipaddr_t *from, rpl_dio_t *dio)
   instance->dio_redundancy = dio->dag_redund;
   instance->default_lifetime = dio->default_lifetime;
   instance->lifetime_unit = dio->lifetime_unit;
+  
+  //added by dacarels
+  dag->prev_pref_parrent_counter=0;
+  dag->pref_parrent_counter=0;
+  dag->number_of_pref_parents=1;
+  dag->number_of_alt_parents=0;
 
   memcpy(&dag->dag_id, &dio->dag_id, sizeof(dio->dag_id));
 
@@ -911,6 +954,10 @@ rpl_join_instance(uip_ipaddr_t *from, rpl_dio_t *dio)
   memcpy(&dag->prefix_info, &dio->prefix_info, sizeof(rpl_prefix_t));
 
   rpl_set_preferred_parent(dag, p);
+  #ifdef RPL_MOBILE
+  rpl_set_alternative_parent(dag, NULL);
+  #endif
+  
   instance->of->update_metric_container(instance);
   dag->rank = instance->of->calculate_rank(p, 0);
   /* So far this is the lowest rank we are aware of. */
@@ -1003,6 +1050,9 @@ rpl_add_dag(uip_ipaddr_t *from, rpl_dio_t *dio)
   memcpy(&dag->prefix_info, &dio->prefix_info, sizeof(rpl_prefix_t));
 
   rpl_set_preferred_parent(dag, p);
+  #ifdef RPL_MOBILE
+  rpl_set_alternative_parent(dag, p);
+  #endif
   dag->rank = instance->of->calculate_rank(p, 0);
   dag->min_rank = dag->rank; /* So far this is the lowest rank we know of. */
 
@@ -1245,6 +1295,9 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
         PRINTF(")\n");
         return;
       }
+      #ifdef RPL_MOBILE
+      p->missed_DIS=0;
+      #endif
       PRINTF("RPL: New candidate parent with rank %u: ", (unsigned)p->rank);
       PRINT6ADDR(from);
       PRINTF("\n");
@@ -1277,6 +1330,9 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
 #if RPL_DAG_MC != RPL_DAG_MC_NONE
   memcpy(&p->mc, &dio->mc, sizeof(p->mc));
 #endif /* RPL_DAG_MC != RPL_DAG_MC_NONE */
+  #ifdef RPL_MOBILE
+  p->missed_DIS = 0	//reset
+  #endif
   if(rpl_process_parent_event(instance, p) == 0) {
     PRINTF("RPL: The candidate parent is rejected\n");
     return;
